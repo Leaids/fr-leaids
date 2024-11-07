@@ -1,0 +1,127 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  company       String?
+  role          Role      @default(USER)
+  subscription  Subscription?
+  campaigns     Campaign[]
+  contacts      Contact[]
+  aiAgents      AIAgent[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  plan          Plan
+  status        String    @default("active")
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  stripeId      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Contact {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  firstName     String
+  lastName      String?
+  phone         String
+  email         String?
+  status        String    @default("active")
+  tags          String[]
+  notes         String?
+  campaigns     CampaignContact[]
+  calls         Call[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Campaign {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  name          String
+  status        String    @default("draft")
+  agentId       String
+  agent         AIAgent   @relation(fields: [agentId], references: [id])
+  contacts      CampaignContact[]
+  calls         Call[]
+  startDate     DateTime?
+  endDate       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model CampaignContact {
+  campaignId    String
+  campaign      Campaign  @relation(fields: [campaignId], references: [id])
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@id([campaignId, contactId])
+}
+
+model AIAgent {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  name          String
+  voice         String    # Voice ID from ElevenLabs/Cartesia
+  script        Json      # Tree-like conversation flow
+  campaigns     Campaign[]
+  status        String    @default("draft")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Call {
+  id            String    @id @default(cuid())
+  campaignId    String
+  campaign      Campaign  @relation(fields: [campaignId], references: [id])
+  contactId     String
+  contact       Contact   @relation(fields: [contactId], references: [id])
+  status        String
+  duration      Int       # in seconds
+  recording     String?   # URL to recording
+  transcript    String?
+  summary       String?
+  sentiment     String?
+  startTime     DateTime
+  endTime       DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
